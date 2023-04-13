@@ -33,7 +33,6 @@ using namespace std;
 %union {
   std::string *str_val;
   int int_val;
-  BaseAST *ast_val;
 }
 
 // lexer 返回的所有 token 种类的声明
