@@ -1,1 +1,1 @@
-[参考实现](https://pku-minic.github.io/online-doc/#/lv0-env-config/language)
+参考：[北大编译实践在线文档](https://pku-minic.github.io/online-doc/)
