@@ -3,7 +3,9 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <string.h>
 #include <ast.h>
+#include "koopa_handler.h"
 
 using namespace std;
 
@@ -32,9 +34,20 @@ int main(int argc, const char *argv[]) {
   auto ret = yyparse(ast);
   assert(!ret);
 
-  // 输出解析得到的 AST, 其实就是个字符串
-  freopen(output,"w",stdout);
-  ast->Dump();
-  fclose(stdout);
+  if(strcmp(mode, "-koopa") == 0) {
+    freopen(output,"w",stdout);
+    ast->Dump();
+    fclose(stdout);
+  } else if(strcmp(mode, "-riscv") == 0) {
+    freopen("qaz.tmp", "w", stdout); // .tmp 为中间文件
+    ast->Dump();
+    fclose(stdout);
+    FILE *fp = fopen("qaz.tmp", "r");
+    char *buf = (char *)malloc(100000);
+    fread(buf, 1, 100000, fp);
+    freopen(output, "w", stdout);
+    parse_string_to_koopa(buf);
+    fclose(stdout);
+  }
   return 0;
 }
