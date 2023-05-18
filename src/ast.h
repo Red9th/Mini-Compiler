@@ -4,6 +4,8 @@
 #include <memory>
 #include <iostream>
 
+static int now = 0;
+
 // 所有 AST 的基类
 class BaseAST {
  public:
@@ -90,16 +92,67 @@ class BlockAST : public BaseAST {
 
 class StmtAST : public BaseAST {
   public:
-    int number;
+    std::unique_ptr<BaseAST> exp;
 
-    void DumpAST() const override {
-      std::cout << "StmtAST { ";
-      std::cout << number;
-      std::cout << " }";
-    }
+    void DumpAST() const override { }
 
     void Dump() const override {
-      std::cout << "  ret ";
-      std::cout << number;
+      exp->Dump();
+      std::cout << "  ret %" << now;
+    }
+};
+
+class ExpAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> unary_exp;
+
+    void DumpAST() const override { }
+
+    void Dump() const override {
+      unary_exp->Dump();
+    }
+};
+
+class PrimaryExpAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> p_exp;
+
+    void DumpAST() const override { }
+
+    void Dump() const override {
+      p_exp->Dump();
+    }
+};
+
+class NumberAST : public BaseAST {
+  public:
+    int val;
+
+    void DumpAST() const override { }
+
+    void Dump() const override {
+      std::cout << "  %" << now << " = add 0, " << val << std::endl;
+    }
+};
+
+class UnaryExpAST : public BaseAST {
+  public:
+    int type;
+    std::unique_ptr<BaseAST> u_exp;
+    std::string op_ident;
+
+    void DumpAST() const override { }
+
+    void Dump() const override {
+      if(type == 0) {
+        u_exp->Dump();
+      } else if(type == 1) {
+        u_exp->Dump();
+        if(op_ident == "-") {
+          std::cout << "  %" << now + 1 << " = sub 0, %" << now ++ << std::endl;
+        } else if(op_ident == "!") {
+          std::cout << "  %" << now + 1 << " = eq 0, %" << now ++ << std::endl;
+        }
+      }
     }
 };
