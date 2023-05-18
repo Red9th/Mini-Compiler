@@ -19,6 +19,15 @@ void Visit(const koopa_raw_value_t &value);
 void Visit(const koopa_raw_return_t &ret);
 // 访问 int
 void Visit(const koopa_raw_integer_t &i32);
+// 访问 binary
+void Visit(const koopa_raw_binary_t &bin);
+
+// 全局变量
+
+// 某条指令执行完毕之后的 rd 编号
+static int cur;
+// 访问 integer 后得到的值
+std::string int_res;
 
 // 访问 raw program
 void Visit(const koopa_raw_program_t &program) {
@@ -87,6 +96,10 @@ void Visit(const koopa_raw_value_t &value) {
       // 访问 integer 指令
       Visit(kind.data.integer);
       break;
+    case KOOPA_RVT_BINARY:
+      // 访问 binary 指令
+      Visit(kind.data.binary);
+      break;
     default:
       // 其他类型暂时遇不到
       assert(false);
@@ -95,15 +108,83 @@ void Visit(const koopa_raw_value_t &value) {
 
 // 访问 return
 void Visit(const koopa_raw_return_t &ret) {
-    printf("  li a0, ");
-    Visit(ret.value);
-    printf("\n");
-    printf("  ret\n");
+  if(ret.value->kind.tag == KOOPA_RVT_INTEGER) {
+    std::cout << "  li    a0, " << ret.value << std::endl;
+    std::cout << "  ret" << std::endl;
+  } else {
+    std::string rd = "t" + std::to_string(cur);
+    std::cout << "  mv    a0, " << rd << std::endl;
+    std::cout << "  ret" << std::endl;
+  }
 }
 
 // 访问 int
 void Visit(const koopa_raw_integer_t &i32) {
-    std::cout << i32.value;
+  if(i32.value == 0) {
+    int_res = "x0";
+  } else {
+    std::string rd = "t" + std::to_string(cur);
+    std::cout << "  li    " << rd << ", " << i32.value << std::endl;
+    int_res = "t" + std::to_string(cur);
+  }
+}
+
+// 访问 binary 指令
+void Visit(const koopa_raw_binary_t &bin) {
+  std::string rd, rs1, rs2;
+  switch (bin.op) {
+    case KOOPA_RBO_EQ:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = "t" + std::to_string(cur);
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = "t" + std::to_string(cur);
+      }
+      rd = "t" + std::to_string(cur);
+      std::cout << "  xor   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      std::cout << "  seqz  " << rd << ", " << rd << std::endl;
+      break;
+    case KOOPA_RBO_ADD:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = "t" + std::to_string(cur);
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = "t" + std::to_string(cur);
+      }
+      rd = "t" + std::to_string(++ cur);
+      std::cout << "  add   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_SUB:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = "t" + std::to_string(cur);
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = "t" + std::to_string(cur);
+      }
+      rd = "t" + std::to_string(++ cur);
+      std::cout << "  sub   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    default:
+      assert(false);
+  }
 }
 
 // 解析字符串 str, 得到 Koopa IR 的内存表示
