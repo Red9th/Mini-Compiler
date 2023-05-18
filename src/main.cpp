@@ -39,10 +39,10 @@ int main(int argc, const char *argv[]) {
     ast->Dump();
     fclose(stdout);
   } else if(strcmp(mode, "-riscv") == 0) {
-    freopen("qaz.tmp", "w", stdout); // .tmp 为中间文件
+    freopen("debug/qaz.tmp", "w", stdout); // .tmp 为中间文件
     ast->Dump();
     fclose(stdout);
-    FILE *fp = fopen("qaz.tmp", "r");
+    FILE *fp = fopen("debug/qaz.tmp", "r");
     char *buf = (char *)malloc(100000);
     fread(buf, 1, 100000, fp);
     freopen(output, "w", stdout);
