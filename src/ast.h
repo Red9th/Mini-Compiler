@@ -8,53 +8,53 @@ static int now = 0;
 
 // 所有 AST 的基类
 class BaseAST {
- public:
-  virtual ~BaseAST() = default;
+  public:
+    virtual ~BaseAST() = default;
 
-  virtual void DumpAST() const = 0;
-  virtual void Dump() const = 0;
+    virtual void DumpAST() const = 0;
+    virtual void Dump() const = 0;
 };
 
 // CompUnit 是 BaseAST
 class CompUnitAST : public BaseAST {
- public:
-  // 用智能指针管理对象
-  std::unique_ptr<BaseAST> func_def;
+  public:
+    // 用智能指针管理对象
+    std::unique_ptr<BaseAST> func_def;
 
-  void DumpAST() const override {
-    std::cout << "CompUnitAST { ";
-    func_def->DumpAST();
-    std::cout << " }";
-  }
+    void DumpAST() const override {
+      std::cout << "CompUnitAST { ";
+      func_def->DumpAST();
+      std::cout << " }";
+    }
 
-  void Dump() const override {
-    func_def->Dump();
-  }
+    void Dump() const override {
+      func_def->Dump();
+    }
 };
 
 // FuncDef 也是 BaseAST
 class FuncDefAST : public BaseAST {
- public:
-  std::unique_ptr<BaseAST> func_type;
-  std::string ident;
-  std::unique_ptr<BaseAST> block;
+  public:
+    std::unique_ptr<BaseAST> func_type;
+    std::string ident;
+    std::unique_ptr<BaseAST> block;
 
-  void DumpAST() const override {
-    std::cout << "FuncDefAST { ";
-    func_type->DumpAST();
-    std::cout << ", " << ident << ", ";
-    block->DumpAST();
-    std::cout << " }";
-  }
+    void DumpAST() const override {
+      std::cout << "FuncDefAST { ";
+      func_type->DumpAST();
+      std::cout << ", " << ident << ", ";
+      block->DumpAST();
+      std::cout << " }";
+    }
 
-  void Dump() const override {
-    std::cout << "fun ";
-    std::cout << "@" << ident << "(): ";
-    func_type->Dump();
-    std::cout << "{ " << std::endl;
-    block->Dump();
-    std::cout << "} " << std::endl;
-  }
+    void Dump() const override {
+      std::cout << "fun ";
+      std::cout << "@" << ident << "(): ";
+      func_type->Dump();
+      std::cout << "{ " << std::endl;
+      block->Dump();
+      std::cout << "} " << std::endl;
+    }
 };
 
 // ...
