@@ -149,30 +149,43 @@ void Visit(const koopa_raw_binary_t &bin) {
   } else {
     rs2 = map[bin.rhs];
   }
+  rd = "t" + std::to_string(cur);
   switch (bin.op) {
+    case KOOPA_RBO_NOT_EQ:
+      std::cout << "  xor   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      std::cout << "  snez  " << rd << ", " << rd << std::endl;
+      break;
     case KOOPA_RBO_EQ:
-      rd = "t" + std::to_string(cur);
       std::cout << "  xor   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       std::cout << "  seqz  " << rd << ", " << rd << std::endl;
       break;
+    case KOOPA_RBO_GT:
+      std::cout << "  sgt   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_LT:
+      std::cout << "  slt   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_GE:
+      std::cout << "  slt   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      std::cout << "  seqz  " << rd << ", " << rd << std::endl;
+      break;
+    case KOOPA_RBO_LE:
+      std::cout << "  sgt   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      std::cout << "  seqz  " << rd << ", " << rd << std::endl;
+      break;
     case KOOPA_RBO_ADD:
-      rd = "t" + std::to_string(cur);
       std::cout << "  add   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_SUB:
-      rd = "t" + std::to_string(cur);
       std::cout << "  sub   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_MUL:
-      rd = "t" + std::to_string(cur);
       std::cout << "  mul   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_DIV:
-      rd = "t" + std::to_string(cur);
       std::cout << "  div   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_MOD:
-      rd = "t" + std::to_string(cur);
       std::cout << "  rem   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     default:

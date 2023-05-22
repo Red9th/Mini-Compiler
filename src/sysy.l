@@ -37,6 +37,14 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "int"           { return INT; }
 "return"        { return RETURN; }
 
+"<="            { return EQUAL_OR_LESSER; }
+">="            { return EQUAL_OR_GREATER; }
+"=="            { return EQUAL; }
+"!="            { return NOT_EQUAL; }
+
+"&&"            { return AND; }
+"||"            { return OR; }
+
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }

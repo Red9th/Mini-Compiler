@@ -174,3 +174,105 @@ class AddExpAST : public BaseAST {
       }
     }
 };
+
+class RelExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> rel_exp;
+    std::unique_ptr<BaseAST> add_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        add_exp->Dump();
+      } else {
+        rel_exp->Dump();
+        l = now - 1;
+        add_exp->Dump();
+        r = now - 1;
+        if(op_ident == "<") {
+          std::cout << "  %" << now << " = lt %" << l << ", %" << r << std::endl;
+        } else if(op_ident == ">") {
+          std::cout << "  %" << now << " = gt %" << l << ", %" << r << std::endl;
+        } else if(op_ident == "<=") {
+          std::cout << "  %" << now << " = le %" << l << ", %" << r << std::endl;
+        } else if(op_ident == ">=") {
+          std::cout << "  %" << now << " = ge %" << l << ", %" << r << std::endl;
+        }
+        now ++;
+      }
+    }
+};
+
+class EqExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> eq_exp;
+    std::unique_ptr<BaseAST> rel_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        rel_exp->Dump();
+      } else {
+        eq_exp->Dump();
+        l = now - 1;
+        rel_exp->Dump();
+        r = now - 1;
+        if(op_ident == "==") {
+          std::cout << "  %" << now << " = eq %" << l << ", %" << r << std::endl;
+        } else if(op_ident == "!=") {
+          std::cout << "  %" << now << " = ne %" << l << ", %" << r << std::endl;
+        }
+        now ++;
+      }
+    }
+};
+
+class LAndExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> land_exp;
+    std::unique_ptr<BaseAST> eq_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        eq_exp->Dump();
+      } else if(op_ident == "&&") {
+        land_exp->Dump();
+        l = now - 1;
+        eq_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now ++ << " = ne 0" << ", %" << l << std::endl;
+        std::cout << "  %" << now ++ << " = ne 0" << ", %" << r << std::endl;
+        std::cout << "  %" << now << " = add %" << now - 1 << ", %" << now - 2 << std::endl;
+        std::cout << "  %" << now + 1 << " = eq 2" << ", %" << now << std::endl;
+        now += 2;
+      }
+    }
+};
+
+class LOrExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> lor_exp;
+    std::unique_ptr<BaseAST> land_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        land_exp->Dump();
+      } else if(op_ident == "||") {
+        lor_exp->Dump();
+        l = now - 1;
+        land_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now ++ << " = ne 0" << ", %" << l << std::endl;
+        std::cout << "  %" << now ++ << " = ne 0" << ", %" << r << std::endl;
+        std::cout << "  %" << now << " = add %" << now - 1 << ", %" << now - 2 << std::endl;
+        std::cout << "  %" << now + 1 << " = ne 0" << ", %" << now << std::endl;
+        now += 2;
+      }
+    }
+};
