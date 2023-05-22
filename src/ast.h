@@ -75,10 +75,10 @@ class StmtAST : public BaseAST {
 
 class ExpAST : public BaseAST {
   public:
-    std::unique_ptr<BaseAST> add_exp;
+    std::unique_ptr<BaseAST> exp;
 
     void Dump() const override {
-      add_exp->Dump();
+      exp->Dump();
     }
 };
 
@@ -133,26 +133,18 @@ class MulExpAST : public BaseAST {
       int l, r;
       if(op_ident == "") {
         unary_exp->Dump();
-      } else if(op_ident == "*") {
+      } else {
         mul_exp->Dump();
         l = now - 1;
         unary_exp->Dump();
         r = now - 1;
-        std::cout << "  %" << now << " = mul %" << l << ", %" << r<< std::endl;
-        now ++;
-      } else if(op_ident == "/") {
-        mul_exp->Dump();
-        l = now - 1;
-        unary_exp->Dump();
-        r = now - 1;
-        std::cout << "  %" << now << " = div %" << l << ", %" << r << std::endl;
-        now ++;
-      } else if(op_ident == "%") {
-        mul_exp->Dump();
-        l = now - 1;
-        unary_exp->Dump();
-        r = now - 1;
-        std::cout << "  %" << now << " = mod %" << l << ", %" << r << std::endl;
+        if(op_ident == "*") {
+          std::cout << "  %" << now << " = mul %" << l << ", %" << r<< std::endl;
+        } else if(op_ident == "/") {
+          std::cout << "  %" << now << " = div %" << l << ", %" << r << std::endl;
+        } else if(op_ident == "%") {
+          std::cout << "  %" << now << " = mod %" << l << ", %" << r << std::endl;
+        }
         now ++;
       }
     }
@@ -168,19 +160,16 @@ class AddExpAST : public BaseAST {
       int l, r;
       if(op_ident == "") {
         mul_exp->Dump();
-      } else if(op_ident == "+") {
+      } else {
         add_exp->Dump();
         l = now - 1;
         mul_exp->Dump();
         r = now - 1;
-        std::cout << "  %" << now << " = add %" << l << ", %" << r << std::endl;
-        now ++;
-      } else if(op_ident == "-") {
-        add_exp->Dump();
-        l = now - 1;
-        mul_exp->Dump();
-        r = now - 1;
-        std::cout << "  %" << now << " = sub %" << l << ", %" << r << std::endl;
+        if(op_ident == "+") {
+          std::cout << "  %" << now << " = add %" << l << ", %" << r << std::endl;
+        } else if(op_ident == "-") {
+          std::cout << "  %" << now << " = sub %" << l << ", %" << r << std::endl;
+        }
         now ++;
       }
     }
