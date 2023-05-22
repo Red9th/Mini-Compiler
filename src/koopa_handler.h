@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <stdio.h>
+#include <unordered_map>
 #include "koopa.h"
 
 // 函数声明
@@ -28,6 +29,8 @@ void Visit(const koopa_raw_binary_t &bin);
 static int cur;
 // 访问 integer 后得到的值
 std::string int_res;
+// 将一条指令与存储其结果的寄存器对应起来
+std::unordered_map<koopa_raw_value_t, std::string> map;
 
 // 访问 raw program
 void Visit(const koopa_raw_program_t &program) {
@@ -99,6 +102,8 @@ void Visit(const koopa_raw_value_t &value) {
     case KOOPA_RVT_BINARY:
       // 访问 binary 指令
       Visit(kind.data.binary);
+      map[value] = "t" + std::to_string(cur);
+      cur ++;
       break;
     default:
       // 其他类型暂时遇不到
@@ -112,7 +117,7 @@ void Visit(const koopa_raw_return_t &ret) {
     std::cout << "  li    a0, " << ret.value << std::endl;
     std::cout << "  ret" << std::endl;
   } else {
-    std::string rd = "t" + std::to_string(cur);
+    std::string rd = "t" + std::to_string(cur - 1);
     std::cout << "  mv    a0, " << rd << std::endl;
     std::cout << "  ret" << std::endl;
   }
@@ -138,13 +143,13 @@ void Visit(const koopa_raw_binary_t &bin) {
         Visit(bin.lhs);
         rs1 = int_res;
       } else {
-        rs1 = "t" + std::to_string(cur);
+        rs1 = map[bin.lhs];
       }
       if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
         Visit(bin.rhs);
         rs2 = int_res;
       } else {
-        rs2 = "t" + std::to_string(cur);
+        rs2 = map[bin.rhs];
       }
       rd = "t" + std::to_string(cur);
       std::cout << "  xor   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
@@ -155,13 +160,13 @@ void Visit(const koopa_raw_binary_t &bin) {
         Visit(bin.lhs);
         rs1 = int_res;
       } else {
-        rs1 = "t" + std::to_string(cur);
+        rs1 = map[bin.lhs];
       }
       if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
         Visit(bin.rhs);
         rs2 = int_res;
       } else {
-        rs2 = "t" + std::to_string(cur);
+        rs2 = map[bin.rhs];
       }
       rd = "t" + std::to_string(++ cur);
       std::cout << "  add   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
@@ -171,16 +176,64 @@ void Visit(const koopa_raw_binary_t &bin) {
         Visit(bin.lhs);
         rs1 = int_res;
       } else {
-        rs1 = "t" + std::to_string(cur);
+        rs1 = map[bin.lhs];
       }
       if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
         Visit(bin.rhs);
         rs2 = int_res;
       } else {
-        rs2 = "t" + std::to_string(cur);
+        rs2 = map[bin.rhs];
       }
       rd = "t" + std::to_string(++ cur);
       std::cout << "  sub   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_MUL:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = map[bin.lhs];
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = map[bin.rhs];
+      }
+      rd = "t" + std::to_string(++ cur);
+      std::cout << "  mul   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_DIV:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = map[bin.lhs];
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = map[bin.rhs];
+      }
+      rd = "t" + std::to_string(++ cur);
+      std::cout << "  div   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
+      break;
+    case KOOPA_RBO_MOD:
+      if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.lhs);
+        rs1 = int_res;
+      } else {
+        rs1 = map[bin.lhs];
+      }
+      if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
+        Visit(bin.rhs);
+        rs2 = int_res;
+      } else {
+        rs2 = map[bin.rhs];
+      }
+      rd = "t" + std::to_string(++ cur);
+      std::cout << "  rem   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     default:
       assert(false);

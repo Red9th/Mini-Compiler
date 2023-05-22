@@ -69,16 +69,16 @@ class StmtAST : public BaseAST {
 
     void Dump() const override {
       exp->Dump();
-      std::cout << "  ret %" << now;
+      std::cout << "  ret %" << now - 1;
     }
 };
 
 class ExpAST : public BaseAST {
   public:
-    std::unique_ptr<BaseAST> unary_exp;
+    std::unique_ptr<BaseAST> add_exp;
 
     void Dump() const override {
-      unary_exp->Dump();
+      add_exp->Dump();
     }
 };
 
@@ -97,6 +97,7 @@ class NumberAST : public BaseAST {
 
     void Dump() const override {
       std::cout << "  %" << now << " = add 0, " << val << std::endl;
+      now ++;
     }
 };
 
@@ -112,10 +113,75 @@ class UnaryExpAST : public BaseAST {
       } else if(type == 1) {
         u_exp->Dump();
         if(op_ident == "-") {
-          std::cout << "  %" << now + 1 << " = sub 0, %" << now ++ << std::endl;
+          std::cout << "  %" << now << " = sub 0, %" << now - 1 << std::endl;
+          now ++;
         } else if(op_ident == "!") {
-          std::cout << "  %" << now + 1 << " = eq 0, %" << now ++ << std::endl;
+          std::cout << "  %" << now << " = eq 0, %" << now - 1 << std::endl;
+          now ++;
         }
+      }
+    }
+};
+
+class MulExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> mul_exp;
+    std::unique_ptr<BaseAST> unary_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        unary_exp->Dump();
+      } else if(op_ident == "*") {
+        mul_exp->Dump();
+        l = now - 1;
+        unary_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now << " = mul %" << l << ", %" << r<< std::endl;
+        now ++;
+      } else if(op_ident == "/") {
+        mul_exp->Dump();
+        l = now - 1;
+        unary_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now << " = div %" << l << ", %" << r << std::endl;
+        now ++;
+      } else if(op_ident == "%") {
+        mul_exp->Dump();
+        l = now - 1;
+        unary_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now << " = mod %" << l << ", %" << r << std::endl;
+        now ++;
+      }
+    }
+};
+
+class AddExpAST : public BaseAST {
+  public:
+    std::string op_ident;
+    std::unique_ptr<BaseAST> add_exp;
+    std::unique_ptr<BaseAST> mul_exp;
+
+    void Dump() const override {
+      int l, r;
+      if(op_ident == "") {
+        mul_exp->Dump();
+      } else if(op_ident == "+") {
+        add_exp->Dump();
+        l = now - 1;
+        mul_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now << " = add %" << l << ", %" << r << std::endl;
+        now ++;
+      } else if(op_ident == "-") {
+        add_exp->Dump();
+        l = now - 1;
+        mul_exp->Dump();
+        r = now - 1;
+        std::cout << "  %" << now << " = sub %" << l << ", %" << r << std::endl;
+        now ++;
       }
     }
 };
