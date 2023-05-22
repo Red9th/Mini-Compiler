@@ -168,7 +168,7 @@ void Visit(const koopa_raw_binary_t &bin) {
       } else {
         rs2 = map[bin.rhs];
       }
-      rd = "t" + std::to_string(++ cur);
+      rd = "t" + std::to_string(cur);
       std::cout << "  add   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_SUB:
@@ -184,7 +184,7 @@ void Visit(const koopa_raw_binary_t &bin) {
       } else {
         rs2 = map[bin.rhs];
       }
-      rd = "t" + std::to_string(++ cur);
+      rd = "t" + std::to_string(cur);
       std::cout << "  sub   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_MUL:
@@ -200,7 +200,7 @@ void Visit(const koopa_raw_binary_t &bin) {
       } else {
         rs2 = map[bin.rhs];
       }
-      rd = "t" + std::to_string(++ cur);
+      rd = "t" + std::to_string(cur);
       std::cout << "  mul   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_DIV:
@@ -216,7 +216,7 @@ void Visit(const koopa_raw_binary_t &bin) {
       } else {
         rs2 = map[bin.rhs];
       }
-      rd = "t" + std::to_string(++ cur);
+      rd = "t" + std::to_string(cur);
       std::cout << "  div   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     case KOOPA_RBO_MOD:
@@ -232,7 +232,7 @@ void Visit(const koopa_raw_binary_t &bin) {
       } else {
         rs2 = map[bin.rhs];
       }
-      rd = "t" + std::to_string(++ cur);
+      rd = "t" + std::to_string(cur);
       std::cout << "  rem   " << rd << ", " << rs1 << ", " << rs2 << std::endl;
       break;
     default:
