@@ -67,6 +67,8 @@ class ConstDefAST : public BaseAST {
 
     void Dump() const override {
       const_int_val[ident] = constInitVal->Calc();
+      std::cout << "  %" << now << " = add 0, " << const_int_val[ident] << std::endl;
+      now ++;
       if(const_def != NULL) {
         const_def->Dump();
       }
@@ -170,7 +172,7 @@ class LValAST : public BaseAST {
     std::string ident;
 
     void Dump() const override {
-      std::cout << const_int_val[ident];
+      
     }
 
     int Calc() override {
