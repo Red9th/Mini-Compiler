@@ -3,8 +3,11 @@
 
 #include <memory>
 #include <iostream>
+#include <unordered_map>
 
 static int now = 0;
+// 常量符号表，将一个常量名映射到其值(32 位整数)
+static std::unordered_map<std::string, int> const_int_val;
 
 // 所有 AST 的基类
 class BaseAST {
@@ -12,6 +15,9 @@ class BaseAST {
     virtual ~BaseAST() = default;
 
     virtual void Dump() const = 0;
+    virtual int Calc() {
+      return 0;
+    }
 };
 
 // CompUnit 是 BaseAST
@@ -22,6 +28,61 @@ class CompUnitAST : public BaseAST {
 
     void Dump() const override {
       func_def->Dump();
+    }
+};
+
+class DeclAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> const_decl;
+
+    void Dump() const override {
+      const_decl->Dump();
+    }
+};
+
+class ConstDeclAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> btype;
+    std::unique_ptr<BaseAST> const_def;
+
+    void Dump() const override {
+      const_def->Dump();
+    }
+};
+
+class BTypeAST : public BaseAST {
+  public:
+    std::string type;
+
+    void Dump() const override {
+
+    }
+};
+
+class ConstDefAST : public BaseAST {
+  public:
+    std::string ident;
+    std::unique_ptr<BaseAST> constInitVal;
+    std::unique_ptr<BaseAST> const_def;
+
+    void Dump() const override {
+      const_int_val[ident] = constInitVal->Calc();
+      if(const_def != NULL) {
+        const_def->Dump();
+      }
+    }
+};
+
+class ConstInitValAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> const_exp;
+
+    void Dump() const override {
+
+    }
+
+    int Calc() override {
+      return const_exp->Calc();
     }
 };
 
@@ -54,12 +115,30 @@ class FuncType : public BaseAST {
 
 class BlockAST : public BaseAST {
   public:
-    std::unique_ptr<BaseAST> stmt;
+    std::unique_ptr<BaseAST> block_item;
 
     void Dump() const override {
       std::cout << "\%entry" << ": " << std::endl;
-      stmt->Dump();
+      block_item->Dump();
       std::cout << std::endl;
+    }
+};
+
+class BlockItemAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> decl;
+    std::unique_ptr<BaseAST> stmt;
+    std::unique_ptr<BaseAST> block_item;
+
+    void Dump() const override {
+      if(decl != NULL) {
+        decl->Dump();
+      } else if(stmt != NULL) {
+        stmt->Dump();
+      }
+      if(block_item != NULL) {
+        block_item->Dump();
+      }
     }
 };
 
@@ -80,6 +159,23 @@ class ExpAST : public BaseAST {
     void Dump() const override {
       exp->Dump();
     }
+
+    int Calc() override {
+      return exp->Calc();
+    }
+};
+
+class LValAST : public BaseAST {
+  public:
+    std::string ident;
+
+    void Dump() const override {
+      std::cout << const_int_val[ident];
+    }
+
+    int Calc() override {
+      return const_int_val[ident];
+    }
 };
 
 class PrimaryExpAST : public BaseAST {
@@ -88,6 +184,10 @@ class PrimaryExpAST : public BaseAST {
 
     void Dump() const override {
       p_exp->Dump();
+    }
+
+    int Calc() override {
+      return p_exp->Calc();
     }
 };
 
@@ -99,18 +199,21 @@ class NumberAST : public BaseAST {
       std::cout << "  %" << now << " = add 0, " << val << std::endl;
       now ++;
     }
+
+    int Calc() override {
+      return val;
+    }
 };
 
 class UnaryExpAST : public BaseAST {
   public:
-    int type;
     std::unique_ptr<BaseAST> u_exp;
     std::string op_ident;
 
     void Dump() const override {
-      if(type == 0) {
+      if(op_ident == "") {
         u_exp->Dump();
-      } else if(type == 1) {
+      } else {
         u_exp->Dump();
         if(op_ident == "-") {
           std::cout << "  %" << now << " = sub 0, %" << now - 1 << std::endl;
@@ -120,6 +223,19 @@ class UnaryExpAST : public BaseAST {
           now ++;
         }
       }
+    }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return u_exp->Calc();
+      } else if(op_ident == "+") {
+        return u_exp->Calc();
+      } else if(op_ident == "-") {
+        return -u_exp->Calc();
+      } else if(op_ident == "!") {
+        return !u_exp->Calc();
+      }
+      return 0;
     }
 };
 
@@ -148,6 +264,19 @@ class MulExpAST : public BaseAST {
         now ++;
       }
     }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return unary_exp->Calc();
+      } else if(op_ident == "*") {
+        return mul_exp->Calc() * unary_exp->Calc();
+      } else if(op_ident == "/") {
+        return mul_exp->Calc() / unary_exp->Calc();
+      } else if(op_ident == "%") {
+        return mul_exp->Calc() % unary_exp->Calc();
+      }
+      return 0;
+    }
 };
 
 class AddExpAST : public BaseAST {
@@ -172,6 +301,17 @@ class AddExpAST : public BaseAST {
         }
         now ++;
       }
+    }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return mul_exp->Calc();
+      } else if(op_ident == "+") {
+        return add_exp->Calc() + mul_exp->Calc();
+      } else if(op_ident == "-") {
+        return add_exp->Calc() - mul_exp->Calc();
+      }
+      return 0;
     }
 };
 
@@ -202,6 +342,21 @@ class RelExpAST : public BaseAST {
         now ++;
       }
     }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return add_exp->Calc();
+      } else if(op_ident == "<") {
+        return rel_exp->Calc() < add_exp->Calc();
+      } else if(op_ident == ">") {
+        return rel_exp->Calc() > add_exp->Calc();
+      } else if(op_ident == "<=") {
+        return rel_exp->Calc() <= add_exp->Calc();
+      } else if(op_ident == ">=") {
+        return rel_exp->Calc() >= add_exp->Calc();
+      }
+      return 0;
+    }
 };
 
 class EqExpAST : public BaseAST {
@@ -227,6 +382,17 @@ class EqExpAST : public BaseAST {
         now ++;
       }
     }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return rel_exp->Calc();
+      } else if(op_ident == "==") {
+        return eq_exp->Calc() == rel_exp->Calc();
+      } else if(op_ident == "!=") {
+        return eq_exp->Calc() != rel_exp->Calc();
+      }
+      return 0;
+    }
 };
 
 class LAndExpAST : public BaseAST {
@@ -251,6 +417,15 @@ class LAndExpAST : public BaseAST {
         now += 2;
       }
     }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return eq_exp->Calc();
+      } else if(op_ident == "&&") {
+        return land_exp->Calc() && eq_exp->Calc();
+      }
+      return 0;
+    }
 };
 
 class LOrExpAST : public BaseAST {
@@ -274,5 +449,27 @@ class LOrExpAST : public BaseAST {
         std::cout << "  %" << now + 1 << " = ne 0" << ", %" << now << std::endl;
         now += 2;
       }
+    }
+
+    int Calc() override {
+      if(op_ident == "") {
+        return land_exp->Calc();
+      } else if(op_ident == "||") {
+        return lor_exp->Calc() || land_exp->Calc();
+      }
+      return 0;
+    }
+};
+
+class ConstExpAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> exp;
+
+    void Dump() const override {
+      exp->Dump();
+    }
+
+    int Calc() override {
+      return exp->Calc();
     }
 };

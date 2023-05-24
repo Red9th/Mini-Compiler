@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <string.h>
+#include <vector>
 #include "ast.h"
 
 // 声明 lexer 函数和错误处理函数
@@ -42,12 +43,13 @@ using namespace std;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN EQUAL_OR_LESSER EQUAL_OR_GREATER EQUAL NOT_EQUAL AND OR
+%token INT RETURN CONST EQUAL_OR_LESSER EQUAL_OR_GREATER EQUAL NOT_EQUAL AND OR
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Exp UnaryExp PrimaryExp Number MulExp AddExp RelExp EqExp LAndExp LOrExp
+%type <ast_val> FuncDef FuncType Block Stmt Exp UnaryExp PrimaryExp Number MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
+%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal BlockItem LVal
 %type <str_val> UnaryOp
 
 %%
@@ -62,6 +64,54 @@ CompUnit
     auto comp_unit = make_unique<CompUnitAST>();
     comp_unit->func_def = unique_ptr<BaseAST>($1);
     ast = move(comp_unit);
+  }
+  ;
+
+Decl
+  : ConstDecl {
+    auto ast = new DeclAST();
+    ast->const_decl = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  }
+  ;
+
+ConstDecl
+  : CONST BType ConstDef ';' {
+    auto ast = new ConstDeclAST();
+    ast->btype = unique_ptr<BaseAST>($2);
+    ast->const_def = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  }
+  ;
+
+BType
+  : INT {
+    auto ast = new BTypeAST();
+    ast->type = *new string("int");
+    $$ = ast;
+  }
+  ;
+
+ConstDef
+  : IDENT '=' ConstInitVal {
+    auto ast = new ConstDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->constInitVal = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  } | IDENT '=' ConstInitVal ',' ConstDef {
+    auto ast = new ConstDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->constInitVal = unique_ptr<BaseAST>($3);
+    ast->const_def = unique_ptr<BaseAST>($5);
+    $$ = ast;
+  }
+  ;
+
+ConstInitVal
+  : ConstExp {
+    auto ast = new ConstInitValAST();
+    ast->const_exp = unique_ptr<BaseAST>($1);
+    $$ = ast;
   }
   ;
 
@@ -96,9 +146,31 @@ FuncType
   ;
 
 Block
-  : '{' Stmt '}' {
+  : '{' BlockItem '}' {
     auto ast = new BlockAST();
-    ast->stmt = unique_ptr<BaseAST>($2);
+    ast->block_item = unique_ptr<BaseAST>($2);
+    $$ = ast;
+  }
+  ;
+
+BlockItem
+  : {
+    auto ast = new BlockItemAST();
+    ast->decl = NULL;
+    ast->stmt = NULL;
+    ast->block_item = NULL;
+    $$ = ast;
+  } | Decl BlockItem {
+    auto ast = new BlockItemAST();
+    ast->decl = unique_ptr<BaseAST>($1);
+    ast->stmt = NULL;
+    ast->block_item = unique_ptr<BaseAST>($2);
+    $$ = ast;
+  } | Stmt BlockItem {
+    auto ast = new BlockItemAST();
+    ast->decl = NULL;
+    ast->stmt = unique_ptr<BaseAST>($1);
+    ast->block_item = unique_ptr<BaseAST>($2);
     $$ = ast;
   }
   ;
@@ -119,10 +191,22 @@ Exp
   }
   ;
 
+LVal
+  : IDENT {
+    auto ast = new LValAST();
+    ast->ident = *unique_ptr<string>($1);
+    $$ = ast;
+  }
+  ;
+
 PrimaryExp
   : '(' Exp ')' {
     auto ast = new PrimaryExpAST();
     ast->p_exp = unique_ptr<BaseAST>($2);
+    $$ = ast;
+  } | LVal {
+    auto ast = new PrimaryExpAST();
+    ast->p_exp = unique_ptr<BaseAST>($1);
     $$ = ast;
   } | Number {
     auto ast = new PrimaryExpAST();
@@ -142,13 +226,11 @@ Number
 UnaryExp
   : PrimaryExp {
     auto ast = new UnaryExpAST();
-    ast->type = 0;
-    ast->op_ident = *new string("+");
+    ast->op_ident = *new string("");
     ast->u_exp = unique_ptr<BaseAST>($1);
     $$ = ast;
   } | UnaryOp UnaryExp {
     auto ast = new UnaryExpAST();
-    ast->type = 1;
     ast->op_ident = *unique_ptr<string>($1);
     ast->u_exp = unique_ptr<BaseAST>($2);
     $$ = ast;
@@ -247,7 +329,7 @@ RelExp
   ;
 
 EqExp
-  :RelExp {
+  : RelExp {
     auto ast = new EqExpAST();
     ast->op_ident = *new string("");
     ast->rel_exp = unique_ptr<BaseAST>($1);
@@ -268,7 +350,7 @@ EqExp
   ;
 
 LAndExp
-  :EqExp {
+  : EqExp {
     auto ast = new LAndExpAST();
     ast->op_ident = *new string("");
     ast->eq_exp = unique_ptr<BaseAST>($1);
@@ -283,7 +365,7 @@ LAndExp
   ;
 
 LOrExp
-  :LAndExp {
+  : LAndExp {
     auto ast = new LOrExpAST();
     ast->op_ident = *new string("");
     ast->land_exp = unique_ptr<BaseAST>($1);
@@ -293,6 +375,14 @@ LOrExp
     ast->op_ident = *new string("||");
     ast->lor_exp = unique_ptr<BaseAST>($1);
     ast->land_exp = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  }
+  ;
+
+ConstExp
+  : Exp {
+    auto ast = new ConstExpAST();
+    ast->exp = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   ;
