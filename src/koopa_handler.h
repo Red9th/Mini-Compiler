@@ -114,7 +114,7 @@ void Visit(const koopa_raw_value_t &value) {
 // 访问 return
 void Visit(const koopa_raw_return_t &ret) {
   if(ret.value->kind.tag == KOOPA_RVT_INTEGER) {
-    std::cout << "  li    a0, " << ret.value << std::endl;
+    std::cout << "  li    a0, " << ret.value->kind.data.integer.value << std::endl;
     std::cout << "  ret" << std::endl;
   } else {
     std::string rd = "t" + std::to_string(cur - 1);
@@ -131,6 +131,7 @@ void Visit(const koopa_raw_integer_t &i32) {
     std::string rd = "t" + std::to_string(cur);
     std::cout << "  li    " << rd << ", " << i32.value << std::endl;
     int_res = "t" + std::to_string(cur);
+    cur ++;
   }
 }
 

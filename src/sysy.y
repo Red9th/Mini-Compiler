@@ -49,7 +49,7 @@ using namespace std;
 
 // 非终结符的类型定义
 %type <ast_val> FuncDef FuncType Block Stmt Exp UnaryExp PrimaryExp Number MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal BlockItem LVal
+%type <ast_val> Decl ConstDecl VarDecl BType ConstDef VarDef InitVal ConstInitVal BlockItem LVal
 %type <str_val> UnaryOp
 
 %%
@@ -70,7 +70,11 @@ CompUnit
 Decl
   : ConstDecl {
     auto ast = new DeclAST();
-    ast->const_decl = unique_ptr<BaseAST>($1);
+    ast->decl = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  } | VarDecl {
+    auto ast = new DeclAST();
+    ast->decl = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   ;
@@ -111,6 +115,47 @@ ConstInitVal
   : ConstExp {
     auto ast = new ConstInitValAST();
     ast->const_exp = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  }
+  ;
+
+VarDecl
+  : BType VarDef ';' {
+    auto ast = new VarDeclAST();
+    ast->btype = unique_ptr<BaseAST>($1);
+    ast->var_def = unique_ptr<BaseAST>($2);
+    $$ = ast;
+  }
+  ;
+
+VarDef
+  : IDENT {
+    auto ast = new VarDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    $$ = ast;
+  } | IDENT ',' VarDef {
+    auto ast = new VarDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->var_def = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  } | IDENT '=' InitVal {
+    auto ast = new VarDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->init_val = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  } | IDENT '=' InitVal ',' VarDef {
+    auto ast = new VarDefAST();
+    ast->ident = *unique_ptr<string>($1);
+    ast->init_val = unique_ptr<BaseAST>($3);
+    ast->var_def = unique_ptr<BaseAST>($5);
+    $$ = ast;
+  }
+  ;
+
+InitVal
+  : Exp {
+    auto ast = new InitValAST();
+    ast->exp = unique_ptr<BaseAST>($1);
     $$ = ast;
   }
   ;
@@ -176,8 +221,15 @@ BlockItem
   ;
 
 Stmt
-  : RETURN Exp ';' {
+  : LVal '=' Exp ';' {
     auto ast = new StmtAST();
+    ast->type = 0;
+    ast->lval = unique_ptr<BaseAST>($1);
+    ast->exp = unique_ptr<BaseAST>($3);
+    $$ = ast;
+  } | RETURN Exp ';' {
+    auto ast = new StmtAST();
+    ast->type = 1;
     ast->exp = unique_ptr<BaseAST>($2);
     $$ = ast;
   }

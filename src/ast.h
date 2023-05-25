@@ -8,8 +8,8 @@
 static int now = 0;
 // 常量符号表，将一个常量名映射到其值(32 位整数)
 static std::unordered_map<std::string, int> const_int_val;
-// 常量对应的 koopa 存放位置
-static std::unordered_map<std::string, int> const_int_pos;
+// 标识符类型表，确定某一个标识符是常量(0)/变量(1)/...
+static std::unordered_map<std::string, int> ident_type;
 
 // 所有 AST 的基类
 class BaseAST {
@@ -19,6 +19,9 @@ class BaseAST {
     virtual std::string Dump() const = 0;
     virtual int Calc() {
       return 0;
+    }
+    virtual std::string get_ident() {
+      return "";
     }
 };
 
@@ -35,10 +38,10 @@ class CompUnitAST : public BaseAST {
 
 class DeclAST : public BaseAST {
   public:
-    std::unique_ptr<BaseAST> const_decl;
+    std::unique_ptr<BaseAST> decl;
 
     std::string Dump() const override {
-      return const_decl->Dump();
+      return decl->Dump();
     }
 };
 
@@ -69,9 +72,7 @@ class ConstDefAST : public BaseAST {
 
     std::string Dump() const override {
       const_int_val[ident] = constInitVal->Calc();
-      std::cout << "  %" << now << " = add 0, " << const_int_val[ident] << std::endl;
-      const_int_pos[ident] = now;
-      now ++;
+      ident_type[ident] = 0;
       if(const_def != NULL) {
         const_def->Dump();
       }
@@ -89,6 +90,45 @@ class ConstInitValAST : public BaseAST {
 
     int Calc() override {
       return const_exp->Calc();
+    }
+};
+
+class VarDeclAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> btype;
+    std::unique_ptr<BaseAST> var_def;
+
+    std::string Dump() const override {
+      return var_def->Dump();
+    }
+};
+
+class VarDefAST : public BaseAST {
+  public:
+    std::string ident;
+    std::unique_ptr<BaseAST> init_val;
+    std::unique_ptr<BaseAST> var_def;
+
+    std::string Dump() const override {
+      std::cout << "  @" << ident << " = alloc i32" << std::endl;
+      ident_type[ident] = 1;
+      if(init_val != NULL) {
+        std::string res = init_val->Dump();
+        std::cout << "  store " << res << ", @" << ident << std::endl;
+      }
+      if(var_def != NULL) {
+        var_def->Dump();
+      }
+      return "";
+    }
+};
+
+class InitValAST : public BaseAST {
+  public:
+    std::unique_ptr<BaseAST> exp;
+
+    std::string Dump() const override {
+      return exp->Dump();
     }
 };
 
@@ -154,11 +194,20 @@ class BlockItemAST : public BaseAST {
 
 class StmtAST : public BaseAST {
   public:
+    int type;
+    std::unique_ptr<BaseAST> lval;
     std::unique_ptr<BaseAST> exp;
 
     std::string Dump() const override {
-      std::string res = exp->Dump();
-      std::cout << "  ret " << res;
+      std::string ident, res;
+      if(type == 0) {
+        ident = lval->get_ident();
+        res = exp->Dump();
+        std::cout << "  store " << res << ", @" << ident << std::endl;
+      } else if(type == 1) {
+        res = exp->Dump();
+        std::cout << "  ret " << res;
+      }
       return "";
     }
 };
@@ -181,12 +230,26 @@ class LValAST : public BaseAST {
     std::string ident;
 
     std::string Dump() const override {
-      std::string res = "%" + std::to_string(const_int_pos[ident]);
+      std::string res;
+      if(ident_type[ident] == 0) {
+        res = std::to_string(const_int_val[ident]);
+      } else if(ident_type[ident] == 1) {
+        std::cout << "  %" << now << " = load @" << ident << std::endl;
+        res = "%" + std::to_string(now);
+        now ++;
+      }
       return res;
     }
 
     int Calc() override {
-      return const_int_val[ident];
+      if(ident_type[ident] == 0) {
+        return const_int_val[ident];
+      }
+      return 0;
+    }
+
+    std::string get_ident() override {
+      return ident;
     }
 };
 
@@ -208,10 +271,7 @@ class NumberAST : public BaseAST {
     int val;
 
     std::string Dump() const override {
-      std::cout << "  %" << now << " = add 0, " << val << std::endl;
-      std::string res = "%" + std::to_string(now);
-      now ++;
-      return res;
+      return std::to_string(val);
     }
 
     int Calc() override {
