@@ -42,8 +42,6 @@ void dump_lw_sw(std::string rs1, std::string rs2, int offset, std::string type);
 static int cur;
 // 访问 integer 后得到的值
 std::string int_res;
-// 将一条指令与存储其结果的寄存器对应起来
-std::unordered_map<koopa_raw_value_t, std::string> map;
 // 记录函数分配的内存大小
 static int alloc_size;
 // 记录当前栈顶的偏移量
@@ -306,26 +304,7 @@ int cal_alloc_size(const koopa_raw_basic_block_t &bb) {
 
 int cal_alloc_size(const koopa_raw_value_t &value) {
   int res = 0;
-  const auto &kind = value->kind;
-  switch(kind.tag) {
-    case KOOPA_RVT_RETURN:
-      break;
-    case KOOPA_RVT_INTEGER:
-      break;
-    case KOOPA_RVT_BINARY:
-      res += 4;
-      break;
-    case KOOPA_RVT_ALLOC:
-      res += 4;
-      break;
-    case KOOPA_RVT_LOAD:
-      res += 4;
-      break;
-    case KOOPA_RVT_STORE:
-      break;
-    default:
-      assert(false);
-  }
+  if(value->ty->tag != KOOPA_RTT_UNIT) res += 4;
   return res;
 }
 
