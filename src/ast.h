@@ -4,12 +4,30 @@
 #include <memory>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
+
+/* 全局变量 */
 
 static int now = 0;
-// 常量符号表，将一个常量名映射到其值(32 位整数)
-static std::unordered_map<std::string, int> const_int_val;
+// 作用域的个数
+const int SCOPE_SIZE = 1000000;
 // 标识符类型表，确定某一个标识符是常量(0)/变量(1)/...
-static std::unordered_map<std::string, int> ident_type;
+static std::unordered_map<std::string, int> ident_type[SCOPE_SIZE];
+
+// 符号表部分
+
+// f[i] 表示作用域 i 的上一层作用域的标号
+static int f[SCOPE_SIZE];
+// 表示全部的作用域个数
+static int deep;
+// 表示当前处于哪个作用域
+static int cur_deep;
+// 标识符符号表，会保存作用域中常量的值
+static std::unordered_map<std::string, int> ident_val[SCOPE_SIZE];
+
+/* 函数声明 */
+
+static int find_ident_depth(int deep, std::string ident);
 
 // 所有 AST 的基类
 class BaseAST {
@@ -71,8 +89,8 @@ class ConstDefAST : public BaseAST {
     std::unique_ptr<BaseAST> const_def;
 
     std::string Dump() const override {
-      const_int_val[ident] = constInitVal->Calc();
-      ident_type[ident] = 0;
+      ident_val[cur_deep][ident] = constInitVal->Calc();
+      ident_type[cur_deep][ident] = 0;
       if(const_def != NULL) {
         const_def->Dump();
       }
@@ -110,11 +128,12 @@ class VarDefAST : public BaseAST {
     std::unique_ptr<BaseAST> var_def;
 
     std::string Dump() const override {
-      std::cout << "  @" << ident << " = alloc i32" << std::endl;
-      ident_type[ident] = 1;
+      std::string cur_ident = ident + "_" + std::to_string(cur_deep);
+      std::cout << "  @" << cur_ident << " = alloc i32" << std::endl;
+      ident_type[cur_deep][ident] = 1;
       if(init_val != NULL) {
         std::string res = init_val->Dump();
-        std::cout << "  store " << res << ", @" << ident << std::endl;
+        std::cout << "  store " << res << ", @" << cur_ident << std::endl;
       }
       if(var_def != NULL) {
         var_def->Dump();
@@ -144,7 +163,9 @@ class FuncDefAST : public BaseAST {
       std::cout << "@" << ident << "(): ";
       func_type->Dump();
       std::cout << "{ " << std::endl;
+      std::cout << "\%entry" << ": " << std::endl;
       block->Dump();
+      std::cout << std::endl;
       std::cout << "} " << std::endl;
       return "";
     }
@@ -166,9 +187,14 @@ class BlockAST : public BaseAST {
     std::unique_ptr<BaseAST> block_item;
 
     std::string Dump() const override {
-      std::cout << "\%entry" << ": " << std::endl;
+      // 进入代码块时新建一个符号表，作为当前的符号表
+      deep ++;
+      f[deep] = cur_deep;
+      cur_deep = deep;
       block_item->Dump();
-      std::cout << std::endl;
+      // 退出代码块时删除刚刚创建的符号表
+      ident_val[cur_deep].clear();
+      cur_deep = f[cur_deep];
       return "";
     }
 };
@@ -197,14 +223,25 @@ class StmtAST : public BaseAST {
     int type;
     std::unique_ptr<BaseAST> lval;
     std::unique_ptr<BaseAST> exp;
+    std::unique_ptr<BaseAST> block;
 
     std::string Dump() const override {
       std::string ident, res;
+      int depth;
       if(type == 0) {
-        ident = lval->get_ident();
-        res = exp->Dump();
-        std::cout << "  store " << res << ", @" << ident << std::endl;
-      } else if(type == 1) {
+        depth = find_ident_depth(cur_deep, lval->get_ident());
+        if(depth != -1) {
+          ident = lval->get_ident() + "_" + std::to_string(depth);
+          res = exp->Dump();
+          std::cout << "  store " << res << ", @" << ident << std::endl;
+        } else {
+          // 抛出异常: 未定义的标识符
+        }
+      } else if(type == 2) {
+        exp->Dump();
+      } else if(type == 3) {
+        block->Dump();
+      } else if(type == 5) {
         res = exp->Dump();
         std::cout << "  ret " << res;
       }
@@ -231,19 +268,30 @@ class LValAST : public BaseAST {
 
     std::string Dump() const override {
       std::string res;
-      if(ident_type[ident] == 0) {
-        res = std::to_string(const_int_val[ident]);
-      } else if(ident_type[ident] == 1) {
-        std::cout << "  %" << now << " = load @" << ident << std::endl;
-        res = "%" + std::to_string(now);
-        now ++;
+      int depth = find_ident_depth(cur_deep, ident);
+      if(depth != -1) {
+        std::string cur_ident = ident + "_" + std::to_string(depth);
+        if(ident_type[depth][ident] == 0) {
+          res = std::to_string(ident_val[depth][ident]);
+        } else if(ident_type[depth][ident] == 1) {
+          std::cout << "  %" << now << " = load @" << cur_ident << std::endl;
+          res = "%" + std::to_string(now);
+          now ++;
+        }
+      } else {
+        // 抛出异常: 未定义的标识符
       }
       return res;
     }
 
     int Calc() override {
-      if(ident_type[ident] == 0) {
-        return const_int_val[ident];
+      int depth = find_ident_depth(cur_deep, ident);
+      if(depth != -1) {
+        if(ident_type[depth][ident] == 0) {
+          return ident_val[depth][ident];
+        }
+      } else {
+        // 抛出异常: 未定义的标识符
       }
       return 0;
     }
@@ -549,3 +597,14 @@ class ConstExpAST : public BaseAST {
       return exp->Calc();
     }
 };
+
+static int find_ident_depth(int deep, std::string ident) {
+  if(deep == 0) {
+    return -1;
+  }
+  if(ident_type[deep].find(ident) != ident_type[deep].end()) {
+    return deep;
+  } else {
+    return find_ident_depth(f[deep], ident);
+  }
+}

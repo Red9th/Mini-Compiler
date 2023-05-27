@@ -227,9 +227,27 @@ Stmt
     ast->lval = unique_ptr<BaseAST>($1);
     ast->exp = unique_ptr<BaseAST>($3);
     $$ = ast;
-  } | RETURN Exp ';' {
+  } | ';' {
     auto ast = new StmtAST();
     ast->type = 1;
+    $$ = ast;
+  } | Exp ';' {
+    auto ast = new StmtAST();
+    ast->type = 2;
+    ast->exp = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  } | Block {
+    auto ast = new StmtAST();
+    ast->type = 3;
+    ast->block = unique_ptr<BaseAST>($1);
+    $$ = ast;
+  } | RETURN ';' {
+    auto ast = new StmtAST();
+    ast->type = 4;
+    $$ = ast;
+  } | RETURN Exp ';' {
+    auto ast = new StmtAST();
+    ast->type = 5;
     ast->exp = unique_ptr<BaseAST>($2);
     $$ = ast;
   }
