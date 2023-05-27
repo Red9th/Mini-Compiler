@@ -122,37 +122,32 @@ void Visit(const koopa_raw_value_t &value) {
       Visit(kind.data.integer);
       break;
     case KOOPA_RVT_ALLOC:
-      value_offset[value] = offset;
-      offset += 4;
       break;
     case KOOPA_RVT_LOAD:
       // 访问 load 指令
       Visit(kind.data.load);
-      value_offset[value] = offset;
-      offset += 4;
-      cur = 0;
       break;
     case KOOPA_RVT_STORE:
       // 访问 store 指令
       Visit(kind.data.store);
-      cur = 0;
       break;
     case KOOPA_RVT_BINARY:
       // 访问 binary 指令
       Visit(kind.data.binary);
-      value_offset[value] = offset;
-      offset += 4;
-      cur = 0;
       break;
     case KOOPA_RVT_RETURN:
       // 访问 return 指令
       Visit(kind.data.ret);
-      cur = 0;
       break;
     default:
       // 其他类型暂时遇不到
       assert(false);
   }
+  if(value->ty->tag != KOOPA_RTT_UNIT) {
+    value_offset[value] = offset;
+    offset += 4;
+  }
+  cur = 0;
   std::cout << std::endl;
 }
 
