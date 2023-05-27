@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include "koopa.h"
 
-// 函数声明
+/* 函数声明 */
 
 // 访问 raw program
 void Visit(const koopa_raw_program_t &program);
@@ -22,8 +22,21 @@ void Visit(const koopa_raw_return_t &ret);
 void Visit(const koopa_raw_integer_t &i32);
 // 访问 binary
 void Visit(const koopa_raw_binary_t &bin);
+// 访问 load
+void Visit(const koopa_raw_load_t &load);
+// 访问 store
+void Visit(const koopa_raw_store_t &store);
 
-// 全局变量
+// 计算需要分配的栈空间总量(单位：字节)
+int cal_alloc_size(const koopa_raw_slice_t &slice);
+int cal_alloc_size(const koopa_raw_function_t &func);
+int cal_alloc_size(const koopa_raw_basic_block_t &bb);
+int cal_alloc_size(const koopa_raw_value_t &value);
+
+// 输出 lw/sw 指令
+void dump_lw_sw(std::string rs1, std::string rs2, int offset, std::string type);
+
+/* 全局变量 */
 
 // 某条指令执行完毕之后的 rd 编号
 static int cur;
@@ -31,6 +44,12 @@ static int cur;
 std::string int_res;
 // 将一条指令与存储其结果的寄存器对应起来
 std::unordered_map<koopa_raw_value_t, std::string> map;
+// 记录函数分配的内存大小
+static int alloc_size;
+// 记录当前栈顶的偏移量
+static int offset;
+// 记录 koopa 指令对应的栈帧偏移量
+std::unordered_map<koopa_raw_value_t, int> value_offset;
 
 // 访问 raw program
 void Visit(const koopa_raw_program_t &program) {
@@ -72,8 +91,17 @@ void Visit(const koopa_raw_slice_t &slice) {
 void Visit(const koopa_raw_function_t &func) {
   printf("  .globl %s\n", func->name + 1);
   printf("%s:\n", func->name + 1);
-  // 执行一些其他的必要操作
-  // ...
+  // 计算程序中需要分配的栈空间总量
+  alloc_size = cal_alloc_size(func);
+  // 将栈空间总量对齐到 16
+  alloc_size = (alloc_size + 15) & ~15;
+  // 函数的 prologue
+  if(-alloc_size >= -2048 && -alloc_size <= 2047) {
+    std::cout << "  addi  sp, sp, " << -alloc_size << std::endl;
+  } else {
+    std::cout << "  li    t" << cur << ", " << -alloc_size << std::endl;
+    std::cout << "  add   sp, sp, t0" << std::endl;
+  }
   // 访问所有基本块
   Visit(func->bbs);
 }
@@ -91,24 +119,43 @@ void Visit(const koopa_raw_value_t &value) {
   // 根据指令类型判断后续需要如何访问
   const auto &kind = value->kind;
   switch (kind.tag) {
-    case KOOPA_RVT_RETURN:
-      // 访问 return 指令
-      Visit(kind.data.ret);
-      break;
     case KOOPA_RVT_INTEGER:
       // 访问 integer 指令
       Visit(kind.data.integer);
       break;
+    case KOOPA_RVT_ALLOC:
+      value_offset[value] = offset;
+      offset += 4;
+      break;
+    case KOOPA_RVT_LOAD:
+      // 访问 load 指令
+      Visit(kind.data.load);
+      value_offset[value] = offset;
+      offset += 4;
+      cur = 0;
+      break;
+    case KOOPA_RVT_STORE:
+      // 访问 store 指令
+      Visit(kind.data.store);
+      cur = 0;
+      break;
     case KOOPA_RVT_BINARY:
       // 访问 binary 指令
       Visit(kind.data.binary);
-      map[value] = "t" + std::to_string(cur);
-      cur ++;
+      value_offset[value] = offset;
+      offset += 4;
+      cur = 0;
+      break;
+    case KOOPA_RVT_RETURN:
+      // 访问 return 指令
+      Visit(kind.data.ret);
+      cur = 0;
       break;
     default:
       // 其他类型暂时遇不到
       assert(false);
   }
+  std::cout << std::endl;
 }
 
 // 访问 return
@@ -117,9 +164,16 @@ void Visit(const koopa_raw_return_t &ret) {
     std::cout << "  li    a0, " << ret.value->kind.data.integer.value << std::endl;
     std::cout << "  ret" << std::endl;
   } else {
-    std::string rd = "t" + std::to_string(cur - 1);
-    std::cout << "  mv    a0, " << rd << std::endl;
-    std::cout << "  ret" << std::endl;
+    int os = value_offset[ret.value];
+    dump_lw_sw("a0", "sp", os, "lw");
+    // 函数的 epilogue
+    if(alloc_size >= -2048 && alloc_size <= 2047) {
+      std::cout << "  addi  sp, sp, " << alloc_size << std::endl;
+    } else {
+      std::cout << "  li    t" << cur << ", " << alloc_size << std::endl;
+      std::cout << "  add   sp, sp, t" << cur << std::endl;
+    }
+    std::cout << "  ret";
   }
 }
 
@@ -131,24 +185,49 @@ void Visit(const koopa_raw_integer_t &i32) {
     std::string rd = "t" + std::to_string(cur);
     std::cout << "  li    " << rd << ", " << i32.value << std::endl;
     int_res = "t" + std::to_string(cur);
-    cur ++;
   }
+}
+
+void Visit(const koopa_raw_load_t &load) {
+  std::string rs = "t" + std::to_string(cur);
+  int lw_os = value_offset[load.src];
+  int sw_os = offset;
+  dump_lw_sw(rs, "sp", lw_os, "lw");
+  dump_lw_sw(rs, "sp", sw_os, "sw");
+}
+
+void Visit(const koopa_raw_store_t &store) {
+  std::string rs = "t" + std::to_string(cur);
+  if(store.value->kind.tag == KOOPA_RVT_INTEGER) {
+    std::cout << "  li    " << rs << ", " << store.value->kind.data.integer.value << std::endl;
+  } else {
+    int lw_os = value_offset[store.value];
+    dump_lw_sw(rs, "sp", lw_os, "lw");
+  }
+  int sw_os = value_offset[store.dest];
+  dump_lw_sw(rs, "sp", sw_os, "sw");
 }
 
 // 访问 binary 指令
 void Visit(const koopa_raw_binary_t &bin) {
   std::string rd, rs1, rs2;
+  int os1, os2;
   if(bin.lhs->kind.tag == KOOPA_RVT_INTEGER) {
     Visit(bin.lhs);
     rs1 = int_res;
   } else {
-    rs1 = map[bin.lhs];
+    os1 = value_offset[bin.lhs];
+    rs1 = "t" + std::to_string(cur);
+    dump_lw_sw(rs1, "sp", os1, "lw");
   }
+  cur ++;
   if(bin.rhs->kind.tag == KOOPA_RVT_INTEGER) {
     Visit(bin.rhs);
     rs2 = int_res;
   } else {
-    rs2 = map[bin.rhs];
+    os2 = value_offset[bin.rhs];
+    rs2 = "t" + std::to_string(cur + 1);
+    dump_lw_sw(rs2, "sp", os2, "lw");
   }
   rd = "t" + std::to_string(cur);
   switch (bin.op) {
@@ -191,6 +270,72 @@ void Visit(const koopa_raw_binary_t &bin) {
       break;
     default:
       assert(false);
+  }
+  // 将返回值写入栈帧中
+  dump_lw_sw(rd, "sp", offset, "sw");
+}
+
+int cal_alloc_size(const koopa_raw_slice_t &slice) {
+  int res = 0;
+  for(size_t i = 0; i < slice.len; i ++) {
+    auto ptr = slice.buffer[i];
+    switch(slice.kind) {
+      case KOOPA_RSIK_FUNCTION:
+        res += cal_alloc_size(reinterpret_cast<koopa_raw_function_t>(ptr));
+        break;
+      case KOOPA_RSIK_BASIC_BLOCK:
+        res += cal_alloc_size(reinterpret_cast<koopa_raw_basic_block_t>(ptr));
+        break;
+      case KOOPA_RSIK_VALUE:
+        res += cal_alloc_size(reinterpret_cast<koopa_raw_value_t>(ptr));
+        break;
+      default:
+        assert(false);
+    }
+  }
+  return res;
+}
+
+int cal_alloc_size(const koopa_raw_function_t &func) {
+  return cal_alloc_size(func->bbs);
+}
+
+int cal_alloc_size(const koopa_raw_basic_block_t &bb) {
+  return cal_alloc_size(bb->insts);
+}
+
+int cal_alloc_size(const koopa_raw_value_t &value) {
+  int res = 0;
+  const auto &kind = value->kind;
+  switch(kind.tag) {
+    case KOOPA_RVT_RETURN:
+      break;
+    case KOOPA_RVT_INTEGER:
+      break;
+    case KOOPA_RVT_BINARY:
+      res += 4;
+      break;
+    case KOOPA_RVT_ALLOC:
+      res += 4;
+      break;
+    case KOOPA_RVT_LOAD:
+      res += 4;
+      break;
+    case KOOPA_RVT_STORE:
+      break;
+    default:
+      assert(false);
+  }
+  return res;
+}
+
+// type = 0: sw, type = 1: lw
+void dump_lw_sw(std::string rs1, std::string rs2, int offset, std::string type) {
+  if(offset >= -2048 && offset <= 2047) {
+    std::cout << "  " << type << "    " << rs1 << ", " << offset << "(" << rs2 << ")" << std::endl;
+  } else {
+    std::cout << "  " << type << "    " << rs1 << ", " << offset << std::endl;
+    std::cout << "  " << type << "    " << rs1 << ", " << rs1 << "(" << rs2 << ")" << std::endl;
   }
 }
 
