@@ -329,7 +329,6 @@ int cal_alloc_size(const koopa_raw_value_t &value) {
   return res;
 }
 
-// type = 0: sw, type = 1: lw
 void dump_lw_sw(std::string rs1, std::string rs2, int offset, std::string type) {
   if(offset >= -2048 && offset <= 2047) {
     std::cout << "  " << type << "    " << rs1 << ", " << offset << "(" << rs2 << ")" << std::endl;
